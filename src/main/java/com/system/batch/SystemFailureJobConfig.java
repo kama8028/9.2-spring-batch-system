@@ -1,5 +1,11 @@
 package com.system.batch;
 
+import java.beans.PropertyEditor;
+import java.beans.PropertyEditorSupport;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Map;
+
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -9,6 +15,7 @@ import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
+import org.springframework.batch.item.file.transform.Range;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -60,31 +67,64 @@ public class SystemFailureJobConfig {
      [SYSTEM] .linesToSkip() : 헤더 라인 제거
      [SYSTEM] .strict(): 엄격한 규율 적용
   */
-  @Bean
-  @StepScope
-  public FlatFileItemReader<SystemFailure> systemFailureItemReader(@Value("#{jobParameters['inputFile']}") String inputFile){
-    return new FlatFileItemReaderBuilder<SystemFailure>()
-      .name("systemFailureItemReader")
-      //읽어 드릴 Resource를 지정한다. 입력 파일의 경우(inpuFile)는 잡 파라미터로부터 동적으로 전달받고 있다.
-      .resource(new FileSystemResource(inputFile))
-      /*FlatFileReader에게 읽어들일 파일이 구분자로 분리된 형식임을 알리는 설정으로 가장 핵심이 되는 설정이다. 
-       * DefaultLieMapper가 사용한 LineTokenizer 구현체로 DelimitedLineTokenizer가 지정된다. 앞서 설명했듯이 DelimitedLineTokenizer는 구분자로 구분된 데이터를 토큰화 한다. 
-      */
-      .delimited()
-      .delimiter(",")
-      .names("errorId","errorDateTime","severity","processId","errorMessage")
-      .targetType(SystemFailure.class)
-      /*한줄 건너 뛰고 두번째 줄부터 실제 데이터를 처리 한다. */
-      .linesToSkip(1)
-      /*파일과 데이터 검증의 강도를 설정하는 메서드로 기본값은 true이다. 이 경우 파일 누락시 예외를 발생시켜 배치를 중단하고 false면 파일이 존재하지 않다고 경고만 남기고 진행한다. */
-      .strict(true)
-      .build();
-  }
+  // @Bean
+  // @StepScope
+  // public FlatFileItemReader<SystemFailure> systemFailureItemReader(@Value("#{jobParameters['inputFile']}") String inputFile){
+  //   return new FlatFileItemReaderBuilder<SystemFailure>()
+  //     .name("systemFailureItemReader")
+  //     //읽어 드릴 Resource를 지정한다. 입력 파일의 경우(inpuFile)는 잡 파라미터로부터 동적으로 전달받고 있다.
+  //     .resource(new FileSystemResource(inputFile))
+  //     /*FlatFileReader에게 읽어들일 파일이 구분자로 분리된 형식임을 알리는 설정으로 가장 핵심이 되는 설정이다. 
+  //      * DefaultLieMapper가 사용한 LineTokenizer 구현체로 DelimitedLineTokenizer가 지정된다. 앞서 설명했듯이 DelimitedLineTokenizer는 구분자로 구분된 데이터를 토큰화 한다. 
+  //     */
+  //     .delimited()
+  //     .delimiter(",")
+  //     .names("errorId","errorDateTime","severity","processId","errorMessage")
+  //     .targetType(SystemFailure.class)
+  //     /*한줄 건너 뛰고 두번째 줄부터 실제 데이터를 처리 한다. */
+  //     .linesToSkip(1)
+  //     /*파일과 데이터 검증의 강도를 설정하는 메서드로 기본값은 true이다. 이 경우 파일 누락시 예외를 발생시켜 배치를 중단하고 false면 파일이 존재하지 않다고 경고만 남기고 진행한다. */
+  //     .strict(true)
+  //     .build();
+  // }
 
   @Bean
   public SystemFailureStdoutItemWriter systemFailureStdoutItemWriter() {
     return new SystemFailureStdoutItemWriter();
   }
+
+
+  @Bean
+  @StepScope
+  public FlatFileItemReader<SystemFailure> systemFailureItemReader(
+    @Value("#{JobParameters['inputFile']}") String inputfile) {
+      return new FlatFileItemReaderBuilder<SystemFailure>()
+        .name("systemFailureItemReader2")
+        .resource(new FileSystemResource(inputfile))
+        .fixedLength()
+        .columns(new Range[]{
+          new Range(1, 8),
+          new Range(9, 29),
+          new Range(30, 39),
+          new Range(40, 45),
+          new Range(46, 66)
+        })
+        .strict(true)
+        .names("errorId", "errorDateTime", "severity", "processId","errorMessage")
+        .targetType(SystemFailure.class)
+        .customEditors(Map.of(LocalDateTime.class, dateTimeEditor()))
+        .build();
+    }
+  
+  private PropertyEditor dateTimeEditor(){
+    return new PropertyEditorSupport() {
+      @Override
+      public void setAsText(String text) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        setValue(LocalDateTime.parse(text, formatter));
+      }
+    };
+  } 
 
   public static class SystemFailureStdoutItemWriter implements ItemWriter<SystemFailure> {
     
