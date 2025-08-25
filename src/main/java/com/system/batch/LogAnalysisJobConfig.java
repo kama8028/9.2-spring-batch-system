@@ -33,13 +33,13 @@ public class LogAnalysisJobConfig {
   }
 
   @Bean
-  public Step logAnalysisStep(FlatFileItemReader<LogEntry> logItemReader, ItemWrite<LogEntry> logItemWirte)
+  public Step logAnalysisStep(FlatFileItemReader<LogEntry> logItemReader, ItemWriter<LogEntry> logItemWriter)
   {
     return new StepBuilder("logAnalysisStep", jobRepository)
         .<LogEntry, LogEntry> chunk (10, transactionManager)
         .reader(logItemReader)
-        .wirter(logItemWriter)
-        .builder();      
+        .writer(logItemWriter)
+        .build();
   }
 
   @Bean 
@@ -59,7 +59,7 @@ public class LogAnalysisJobConfig {
   @Bean
   public ItemWriter<LogEntry> logItemWrite() {
     return items -> {
-      for(logEntry logEntry : items) {
+      for(LogEntry logEntry : items) {
         log.info(String.format("THD-%$s: %s", logEntry.getThreadNum(), logEntry.getMessage()));
       }
     };
