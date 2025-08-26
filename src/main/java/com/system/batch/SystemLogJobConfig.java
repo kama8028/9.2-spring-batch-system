@@ -15,24 +15,27 @@ import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.mapping.FieldSetMapper;
 import org.springframework.batch.item.file.mapping.PatternMatchingCompositeLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
+import org.springframework.batch.item.file.transform.FieldSet;
 import org.springframework.batch.item.file.transform.LineTokenizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.validation.BindException;
 
 import lombok.Data;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Configuration
-public class SystemLogConfig {
+public class SystemLogJobConfig {
 
   private final JobRepository jobRepository;
   private final PlatformTransactionManager transactionManager;
 
-  public SystemLogConfig(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+  public SystemLogJobConfig(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
     this.jobRepository = jobRepository;
     this.transactionManager = transactionManager;
   }
@@ -75,9 +78,9 @@ public class SystemLogConfig {
       lineMapper.setTokenizers(tokenizers);
 
       Map<String, FieldSetMapper<SystemLog>> mappers = new HashMap<>();
-      mappers.put("ERROR*", new ErrorFiedSetMapper());
-      mappers.put("ABORT*", new AbortFiedSetMapper());
-      mappers.put("COLLECT*", new CollectFiedSetMapper());
+      mappers.put("ERROR*", new ErrorFieldSetMapper());
+      mappers.put("ABORT*", new AbortFieldSetMapper());
+      mappers.put("COLLECT*", new CollectFieldSetMapper());
       lineMapper.setFieldSetMappers(mappers);
 
       return lineMapper;      
@@ -119,8 +122,78 @@ public class SystemLogConfig {
       private String timestamp;
    }
 
-   @Data
-   @ToString(callSuper = true)
+  @Data
+  @ToString(callSuper = true)
+  public static class ErrorLog extends SystemLog {
+    private String application;
+    private String errorType;
+    private String message;
+    private String resourceUsage;
+    private String logPath;
+  }
+
+  @Data
+  @ToString(callSuper = true)
+  public static class AbortLog extends SystemLog {
+    private String application;
+    private String errorType;
+    private String message;
+    private String exitCode;
+    private String processPath;
+    private String status;
+  }
+
+  @Data
+  @ToString(callSuper = true)
+  public static class CollectLog extends SystemLog {
+    private String dumpType;
+    private String processId;
+    private String dumpPath;
+  }
+
+    public static class ErrorFieldSetMapper implements FieldSetMapper<SystemLog> {
+        @Override
+        public SystemLog mapFieldSet(FieldSet fs) throws BindException {
+            ErrorLog errorLog = new ErrorLog();
+            errorLog.setType(fs.readString("type"));
+            errorLog.setApplication(fs.readString("application"));
+            errorLog.setErrorType(fs.readString("errorType"));
+            errorLog.setTimestamp(fs.readString("timestamp"));
+            errorLog.setMessage(fs.readString("message"));
+            errorLog.setResourceUsage(fs.readString("resourceUsage"));
+            errorLog.setLogPath(fs.readString("logPath"));
+            return errorLog;
+        }
+    }
+
+    public static class AbortFieldSetMapper implements FieldSetMapper<SystemLog> {
+        @Override
+        public SystemLog mapFieldSet(FieldSet fs) throws BindException {
+            AbortLog abortLog = new AbortLog();
+            abortLog.setType(fs.readString("type"));
+            abortLog.setApplication(fs.readString("application"));
+            abortLog.setErrorType(fs.readString("errorType"));
+            abortLog.setTimestamp(fs.readString("timestamp"));
+            abortLog.setMessage(fs.readString("message"));
+            abortLog.setExitCode(fs.readString("exitCode"));
+            abortLog.setProcessPath(fs.readString("processPath"));
+            abortLog.setStatus(fs.readString("status"));
+            return abortLog;
+        }
+    }
+
+    public static class CollectFieldSetMapper implements FieldSetMapper<SystemLog> {
+        @Override
+        public SystemLog mapFieldSet(FieldSet fs) throws BindException {
+            CollectLog collectLog = new CollectLog();
+            collectLog.setType(fs.readString("type"));
+            collectLog.setDumpType(fs.readString("dumpType"));
+            collectLog.setProcessId(fs.readString("processId"));
+            collectLog.setTimestamp(fs.readString("timestamp"));
+            collectLog.setDumpPath(fs.readString("dumpPath"));
+            return collectLog;
+        }
+    }
    
   
 }

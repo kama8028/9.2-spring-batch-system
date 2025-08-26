@@ -77,7 +77,9 @@ public class LogAnalysisJobConfig {
   @AllArgsConstructor
   public static class LogEntry {
        private String threadNum;
-       private String message;
+       private String message;      
   }
+
+
 
 }
