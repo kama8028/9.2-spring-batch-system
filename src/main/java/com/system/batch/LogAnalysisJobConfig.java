@@ -68,7 +68,7 @@ public class LogAnalysisJobConfig {
   public ItemWriter<LogEntry> logItemWrite() {
     return items -> {
       for(LogEntry logEntry : items) {
-        log.info(String.format("THD-%s: %s", logEntry.getThreadNum(), logEntry.getMessage()));
+        log.info(String.format("THD-%s: %s", logEntry.getThreadNum(), logEntry.getMessage()));        
       }
     };
   }
