@@ -1,5 +1,7 @@
 package com.system.batch;
 
+import java.beans.BeanProperty;
+
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -8,6 +10,7 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
+import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.transform.RegexLineTokenizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -24,6 +27,11 @@ import lombok.extern.slf4j.Slf4j;
 public class LogAnalysisJobConfig {
   private final JobRepository jobRepository;
   private final PlatformTransactionManager transactionManager;
+
+  public LogAnalysisJobConfig(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+    this.jobRepository = jobRepository;
+    this.transactionManager = transactionManager;
+  }
 
   @Bean
   public Job logAnalysisJob(Step logAnalysisStep) {
@@ -44,15 +52,15 @@ public class LogAnalysisJobConfig {
 
   @Bean 
   @StepScope
-  public FlatFileItemReader<LogEntry> logItemReader(@Value("#{jobParameters['inputFile']}") String inputFile)) {
+  public FlatFileItemReader<LogEntry> logItemReader(@Value("#{jobParameters['inputFile']}") String inputFile) {
     RegexLineTokenizer tokenizer =  new RegexLineTokenizer();
-    tokenizer.setRegex("\\[\\w+\\]\\[Thread-(\\d+)\\]\\CPU: \\D+%](.+)");
+    tokenizer.setRegex("\\[\\w+\\]\\[Thread-(\\d+)\\]\\[CPU: \\D+%](.+)");
 
-    return new FlatFileItemReader<LogEntry>()
+    return new FlatFileItemReaderBuilder<LogEntry>()
       .name("logItemReader")
       .resource(new FileSystemResource(inputFile))
-      .lineToekenizer(tokenizer)
-      .fieldSetMapper(fieldSet -> new LogEntry(filedSet.readString(0), fieldSet.readString(1)))
+      .lineTokenizer(tokenizer)
+      .fieldSetMapper(fieldSet -> new LogEntry(fieldSet.readString(0), fieldSet.readString(1)))
       .build();
   }
 
