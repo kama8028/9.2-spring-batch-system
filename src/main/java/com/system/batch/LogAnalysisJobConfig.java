@@ -54,7 +54,7 @@ public class LogAnalysisJobConfig {
   @StepScope
   public FlatFileItemReader<LogEntry> logItemReader(@Value("#{jobParameters['inputFile']}") String inputFile) {
     RegexLineTokenizer tokenizer =  new RegexLineTokenizer();
-    tokenizer.setRegex("\\[\\w+\\]\\[Thread-(\\d+)\\]\\[CPU: \\D+%](.+)");
+    tokenizer.setRegex("\\[\\w+\\]\\[Thread-(\\d+)\\]\\[CPU: \\d+%\\] (.+)");
 
     return new FlatFileItemReaderBuilder<LogEntry>()
       .name("logItemReader")
@@ -68,7 +68,7 @@ public class LogAnalysisJobConfig {
   public ItemWriter<LogEntry> logItemWrite() {
     return items -> {
       for(LogEntry logEntry : items) {
-        log.info(String.format("THD-%$s: %s", logEntry.getThreadNum(), logEntry.getMessage()));
+        log.info(String.format("THD-%s: %s", logEntry.getThreadNum(), logEntry.getMessage()));
       }
     };
   }
