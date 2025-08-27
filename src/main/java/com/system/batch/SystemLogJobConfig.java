@@ -89,7 +89,7 @@ public class SystemLogJobConfig {
    @Bean
    public DelimitedLineTokenizer errorLineTokenizer() {
       DelimitedLineTokenizer tokenizer = new DelimitedLineTokenizer();
-      tokenizer.setNames("type", "application", "timestamp", "message", "resouceUsage", "logPath");
+      tokenizer.setNames("type", "application", "errorType","timestamp", "message", "resourceUsage", "logPath");
       return tokenizer;
    }
 

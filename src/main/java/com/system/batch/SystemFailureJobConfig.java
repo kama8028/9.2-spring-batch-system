@@ -14,13 +14,16 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
+import org.springframework.batch.item.file.MultiResourceItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
+import org.springframework.batch.item.file.builder.MultiResourceItemReaderBuilder;
 import org.springframework.batch.item.file.transform.Range;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.batch.core.step.builder.StepBuilder;
@@ -46,15 +49,15 @@ public class SystemFailureJobConfig {
       .build();
   }
 
-  @Bean
-  public Step systemFailureStep(FlatFileItemReader<SystemFailure> systemFailureItemReader, SystemFailureStdoutItemWriter  systemFailureStdoutItemWriter) {
-    return new StepBuilder("systemFailureStep", jobRepository)
-      //FlatFileItemReader는 파일의 한 줄을 읽어 이를 SystemFailure로 변환하는 작업을 청크당 10번 반복 한다.
-      .<SystemFailure, SystemFailure>chunk(10, transactionManager)
-      .reader(systemFailureItemReader)
-      .writer(systemFailureStdoutItemWriter)
-      .build();
-  }
+  // @Bean
+  // public Step systemFailureStep(FlatFileItemReader<SystemFailure> systemFailureItemReader, SystemFailureStdoutItemWriter  systemFailureStdoutItemWriter) {
+  //   return new StepBuilder("systemFailureStep", jobRepository)
+  //     //FlatFileItemReader는 파일의 한 줄을 읽어 이를 SystemFailure로 변환하는 작업을 청크당 10번 반복 한다.
+  //     .<SystemFailure, SystemFailure>chunk(10, transactionManager)
+  //     .reader(systemFailureItemReader)
+  //     .writer(systemFailureStdoutItemWriter)
+  //     .build();
+  // }
 
   /*
    * [SYSTEM] Configuration Analysis:
@@ -88,33 +91,67 @@ public class SystemFailureJobConfig {
   //     .build();
   // }
 
+
+   @Bean
+   public Step systemFailureStep(MultiResourceItemReader<SystemFailure> multiSystemFailureItemReader, SystemFailureStdoutItemWriter systemFailureStdouItemWriter) {
+      return new StepBuilder("systemFailureStep", jobRepository)
+        .<SystemFailure, SystemFailure> chunk(10, transactionManager)
+        .reader(multiSystemFailureItemReader)
+        .writer(systemFailureStdouItemWriter)
+        .build();
+   }
+
+   @Bean
+   @StepScope
+   public MultiResourceItemReader<SystemFailure> multiSystemFailureItemReader(@Value("#{jobParameters['inputFilePath']}") String inputFilePath) {
+      return new MultiResourceItemReaderBuilder<SystemFailure>()
+        .name("multiSystemFailureItemReader")
+        .resources(new Resource[] {
+            new FileSystemResource(inputFilePath + "/critical-failures.csv"),
+            new FileSystemResource(inputFilePath + "/normal-failures.csv")
+         })
+        .delegate(systemFailureFileReader())
+        .build();
+   }
+
+  @Bean
+  public FlatFileItemReader<SystemFailure> systemFailureFileReader() {
+    return new FlatFileItemReaderBuilder<SystemFailure>()
+    .name("systemFailureFileReader")
+    .delimited()
+    .delimiter(",")
+    .names("errorId","errorDateTime","severity","processId","errorMessage")
+    .targetType(SystemFailure.class)
+    .linesToSkip(1)
+    .build();
+  }
+
   @Bean
   public SystemFailureStdoutItemWriter systemFailureStdoutItemWriter() {
     return new SystemFailureStdoutItemWriter();
   }
 
-
-  @Bean
-  @StepScope
-  public FlatFileItemReader<SystemFailure> systemFailureItemReader(
-    @Value("#{JobParameters['inputFile']}") String inputfile) {
-      return new FlatFileItemReaderBuilder<SystemFailure>()
-        .name("systemFailureItemReader2")
-        .resource(new FileSystemResource(inputfile))
-        .fixedLength()
-        .columns(new Range[]{
-          new Range(1, 8),
-          new Range(9, 29),
-          new Range(30, 39),
-          new Range(40, 45),
-          new Range(46, 66)
-        })
-        .strict(true)
-        .names("errorId", "errorDateTime", "severity", "processId","errorMessage")
-        .targetType(SystemFailure.class)
-        .customEditors(Map.of(LocalDateTime.class, dateTimeEditor()))
-        .build();
-    }
+  // @Bean
+  // @StepScope
+  // public FlatFileItemReader<SystemFailure> systemFailureItemReader(
+  //   @Value("#{JobParameters['inputFile']}") String inputfile) {
+  //     return new FlatFileItemReaderBuilder<SystemFailure>()
+  //       .name("systemFailureItemReader2")
+  //       .resource(new FileSystemResource(inputfile))
+  //       .fixedLength()
+  //       .columns(new Range[]{
+  //         new Range(1, 8),
+  //         new Range(9, 29),
+  //         new Range(30, 39),
+  //         new Range(40, 45),
+  //         new Range(46, 66)
+  //       })
+  //       .strict(true)
+  //       .names("errorId", "errorDateTime", "severity", "processId","errorMessage")
+  //       .targetType(SystemFailure.class)
+  //       .customEditors(Map.of(LocalDateTime.class, dateTimeEditor()))
+  //       .build();
+  //   }
   
   private PropertyEditor dateTimeEditor(){
     return new PropertyEditorSupport() {
